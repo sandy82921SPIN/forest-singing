@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聽見森林在唱歌 - 80格復古創意洞洞樂</title>
+    <!-- Tailwind CSS 適用於精美現代化 UI 設計 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome 圖標支援 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts 融入台灣復古兼具現代氛圍 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <!-- Confetti 紙花特效庫 (用於大獎爆發) -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-image: radial-gradient(#e8f5e9 1px, #f1f8e9 1px);
+            background-size: 20px 20px;
+        }
+        /* 森林落葉紙張紋路特效 */
+        .torn-paper {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cpath d='M0 50 Q 25 35, 50 50 T 100 50 L 100 100 L 0 100 Z' fill='%232e7d32' opacity='0.12'/%3E%3C/svg%3E");
+        }
+        
+        /* 壓下與戳破的物理動畫 */
+        .poke-hole-container {
+            perspective: 500px;
+        }
+
+        .poke-paper {
+            transition: transform 0.15s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.2s ease;
+            transform-style: preserve-3d;
+        }
+
+        /* 模擬手指按壓時紙面凹陷沉下去的真實物理感 */
+        .poke-paper:active {
+            transform: scale(0.85) translateZ(-20px);
+            filter: brightness(0.9);
+            box-shadow: inset 0 8px 16px rgba(0,0,0,0.4);
+        }
+
+        /* 戳破瞬間爆開的動畫效果 */
+        .poked-shattered {
+            animation: shatterOut 0.35s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+            pointer-events: none;
+        }
+
+        @keyframes shatterOut {
+            0% {
+                transform: scale(0.85) rotate(0deg);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.15) rotate(10deg);
+                filter: brightness(1.2);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(0) rotate(-25deg);
+                opacity: 0;
+            }
+        }
+
+        /* 自訂碎紙屑噴散動畫 */
+        @keyframes leafFly {
+            0% {
+                transform: translate(0, 0) scale(1) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(0) rotate(var(--rot));
+                opacity: 0;
+            }
+        }
+
+        .leaf-particle {
+            position: absolute;
+            pointer-events: none;
+            z-index: 40;
+            animation: leafFly 0.6s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-12 text-slate-800">
+
+    <!-- 主容器 -->
+    <div class="max-w-7xl mx-auto px-4 pt-6">
+        
+        <!-- 頂部標題與介紹 -->
+        <header class="text-center mb-8">
+            <span class="px-4 py-1.5 bg-emerald-700 text-white text-xs font-bold rounded-full uppercase tracking-wider shadow-sm">
+                🌲 森林音樂祭 ✕ 經典洞洞樂 🎶
+            </span>
+            <h1 class="text-4xl md:text-5xl font-extrabold text-emerald-950 mt-3 mb-2 flex items-center justify-center gap-3 flex-wrap">
+                <i class="fa-solid fa-music text-emerald-600 animate-bounce"></i>
+                聽見森林在唱歌
+                <i class="fa-solid fa-tree text-emerald-600 animate-pulse"></i>
+            </h1>
+            <p class="text-emerald-800/80 max-w-2xl mx-auto text-sm md:text-base">
+                森林裡的動物們正在歡唱！為您隆重獻上 <span class="font-extrabold text-emerald-950">全新 80 格神祕寶藏洞洞樂</span>，藏著滿滿的森林之音與驚喜獎項，快伸出手指用力戳一下吧！
+            </p>
+        </header>
+
+        <!-- 主要版面分區 -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+            
+            <!-- 左側/上方面板：統計數據與控制 -->
+            <div class="lg:col-span-1 space-y-6">
+                
+                <!-- 獎項統計控制台 -->
+                <div class="bg-white rounded-3xl p-5 shadow-xl border border-emerald-100 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-400 via-emerald-500 to-green-600"></div>
+                    <h3 class="text-lg font-bold text-emerald-950 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie text-emerald-600"></i> 寶藏剩餘統計
+                    </h3>
+                    
+                    <div class="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                        <!-- 特獎 -->
+                        <div class="flex items-center justify-between p-2 bg-yellow-50 rounded-xl border border-yellow-150">
+                            <div class="flex items-center gap-2">
+                                <span class="w-7 h-7 rounded-full bg-yellow-400 text-white flex items-center justify-center text-sm">🌟</span>
+                                <span class="font-bold text-yellow-950 text-xs">特獎 (極致)</span>
+                            </div>
+                            <span class="font-black text-yellow-600 text-sm" id="stat-special">3 / 3</span>
+                        </div>
+                        <!-- ㄅ級獎 -->
+                        <div class="flex items-center justify-between p-2 bg-orange-50 rounded-xl border border-orange-100">
+                            <div class="flex items-center gap-2">
+                                <span class="w-7 h-7 rounded-full bg-orange-400 text-white flex items-center justify-center text-sm">🦉</span>
+                                <span class="font-bold text-orange-950 text-xs">ㄅ級獎</span>
+                            </div>
+                            <span class="font-black text-orange-600 text-sm" id="stat-b_grade">3 / 3</span>
+                        </div>
+                        <!-- ㄆ級獎 -->
+                        <div class="flex items-center justify-between p-2 bg-amber-50 rounded-xl border border-amber-100">
+                            <div class="flex items-center gap-2">
+                                <span class="w-7 h-7 rounded-full bg-amber-400 text-white flex items-center justify-center text-sm">🦊</span>
+                                <span class="font-bold text-amber-900 text-xs">ㄆ級獎</span>
+                            </div>
+                            <span class="font-black text-amber-600 text-sm" id="stat-p_grade">4 / 4</span>
+                        </div>
+                        <!-- ㄇ級獎 -->
+                        <div class="flex items-center justify-between p-2 bg-emerald-50 rounded-xl border border-emerald-100">
+                            <div class="flex items-center gap-2">
+                                <span class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-sm">🐿️</span>
+                                <span class="font-bold text-emerald-950 text-xs">ㄇ級獎</span>
+                            </div>
+                            <span class="font-black text-emerald-600 text-sm" id="stat-m_grade">5 / 5</span>
+                        </div>
+                        <!-- ㄈ級獎 -->
+                        <div class="flex items-center justify-between p-2 bg-teal-50 rounded-xl border border-teal-100">
+                            <div class="flex items-center gap-2">
+                                <span class="w-7 h-7 rounded-full bg-teal-500 text-white flex items-center justify-center text-sm">🦔</span>
+                                <span class="font-bold text-teal-950 text-xs">ㄈ級獎</span>
+                            </div>
+                            <span class="font-black text-teal-600 text-sm" id="stat-f_grade">5 / 5</span>
+                        </div>
+                        <!-- 再抽一次 -->
+                        <div class="flex items-center justify-between p-2 bg-purple-50 rounded-xl border border-purple-100">
+                            <div class="flex items-center gap-2">
+                                <span class="w-7 h-7 rounded-full bg-purple-400 text-white flex items-center justify-center text-sm">🔄</span>
+                                <span class="font-bold text-purple-900 text-xs">再抽一次</span>
+                            </div>
+                            <span class="font-black text-purple-600 text-sm" id="stat-draw_again">10 / 10</span>
+                        </div>
+                        <!-- 沒魚蝦也好獎 -->
+                        <div class="flex items-center justify-between p-2 bg-blue-50 rounded-xl border border-blue-100">
+                            <div class="flex items-center gap-2">
+                                <span class="w-7 h-7 rounded-full bg-blue-400 text-white flex items-center justify-center text-sm">🐟</span>
+                                <span class="font-bold text-blue-900 text-xs">沒魚蝦也好</span>
+                            </div>
+                            <span class="font-black text-blue-600 text-sm" id="stat-no_fish_shrimp">30 / 30</span>
+                        </div>
+                        <!-- 銘謝惠顧 -->
+                        <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl border border-slate-200">
+                            <div class="flex items-center gap-2">
+                                <span class="w-7 h-7 rounded-full bg-slate-400 text-white flex items-center justify-center text-sm">🍃</span>
+                                <span class="font-bold text-slate-700 text-xs">銘謝惠顧</span>
+                            </div>
+                            <span class="font-black text-slate-500 text-sm" id="stat-consolation">20 / 20</span>
+                        </div>
+                    </div>
+
+                    <!-- 進度條 -->
+                    <div class="mt-4 pt-3 border-t border-slate-100">
+                        <div class="flex justify-between text-xs text-slate-500 font-medium mb-1">
+                            <span>探索進度</span>
+                            <span id="poked-percent">0% (0 / 80)</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                            <div id="progress-bar" class="bg-gradient-to-r from-emerald-500 to-green-600 h-full w-0 transition-all duration-300"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 互動控制箱 -->
+                <div class="bg-white rounded-3xl p-5 shadow-xl border border-emerald-100 space-y-4">
+                    <h3 class="text-lg font-bold text-emerald-950 mb-1 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-emerald-600"></i> 控制面板
+                    </h3>
+
+                    <!-- 音效開關 -->
+                    <div class="flex items-center justify-between p-3 bg-emerald-50/40 rounded-xl border border-emerald-100/50">
+                        <div>
+                            <span class="font-bold text-slate-700 text-sm block">森林音樂與音效</span>
+                            <span class="text-xs text-slate-400">Web Audio 原生合成音</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="sound-toggle" checked class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                    </div>
+
+                    <!-- 重置按鈕 -->
+                    <button id="reset-btn" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-700 hover:to-green-800 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-leaf animate-spin-slow"></i>
+                        重新栽種 (重置 80 格)
+                    </button>
+                </div>
+
+                <!-- 歷史獲獎紀錄 -->
+                <div class="bg-white rounded-3xl p-5 shadow-xl border border-emerald-100">
+                    <h3 class="text-lg font-bold text-emerald-950 mb-3 flex items-center justify-between">
+                        <span class="flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-emerald-600"></i> 森林足跡 (得獎紀錄)
+                        </span>
+                        <span class="text-xs text-slate-400" id="history-count">0 筆</span>
+                    </h3>
+                    <div id="history-list" class="space-y-2 max-h-44 overflow-y-auto pr-1 text-sm text-slate-500">
+                        <div class="text-center py-4 text-slate-400 text-xs">
+                            尚未留下足跡，趕緊戳一格聽歌吧！
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 右側/下方主板：80格大洞洞板 -->
+            <div class="lg:col-span-3">
+                <div class="bg-emerald-900 p-4 md:p-6 rounded-3xl shadow-2xl border-4 border-emerald-950 relative">
+                    <!-- 木紋質感裝飾 -->
+                    <div class="absolute -inset-0.5 bg-gradient-to-br from-emerald-700 to-transparent rounded-3xl opacity-15 pointer-events-none"></div>
+                    
+                    <!-- 頂部宣傳文字 (森林風) -->
+                    <div class="bg-emerald-950 px-4 py-2.5 rounded-xl mb-6 flex flex-col md:flex-row justify-between items-center text-center md:text-left gap-2 border border-emerald-850">
+                        <div class="flex items-center gap-2 flex-wrap justify-center">
+                            <span class="text-yellow-400 font-black text-lg tracking-wider">🎵 聽見森林在唱歌 🎵</span>
+                            <span class="text-slate-300 text-xs">戳開厚葉紙，聆聽林間動人音符！</span>
+                        </div>
+                        <div class="text-emerald-400 text-xs font-semibold">
+                            🌲 森林限定版 80 孔
+                        </div>
+                    </div>
+
+                    <!-- 80格大網格 -->
+                    <div class="grid grid-cols-4 sm:grid-cols-8 md:grid-cols-10 gap-2.5 md:gap-3 poke-hole-container" id="poke-grid">
+                        <!-- 洞洞會由 JavaScript 動態生成 -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 全螢幕大獎恭喜 Modal 彈窗 -->
+    <div id="congrats-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative border-4 border-yellow-400 animate-bounce-short">
+            <!-- 閃亮背景 -->
+            <div class="absolute -top-16 left-1/2 -translate-x-1/2 w-32 h-32 bg-yellow-400 rounded-full flex items-center justify-center text-5xl shadow-lg border-4 border-white animate-spin-slow" id="modal-emoji">
+                🌟
+            </div>
+            
+            <div class="mt-12 space-y-4">
+                <span class="px-3 py-1 bg-yellow-100 text-yellow-700 font-extrabold text-xs rounded-full" id="modal-badge">
+                    恭喜中特獎！
+                </span>
+                <h2 class="text-3xl font-black text-emerald-950" id="modal-title">極致好運！🎉</h2>
+                <p class="text-slate-600 text-sm leading-relaxed" id="modal-desc">
+                    您戳中了森林裡最神秘的特獎大禮！悅耳的鳥鳴正為您歌唱！
+                </p>
+                <button onclick="closeModal()" class="w-full py-3 bg-gradient-to-r from-yellow-500 to-emerald-600 hover:from-yellow-600 hover:to-emerald-700 text-white font-extrabold rounded-2xl shadow-md transition-all">
+                    收下寶藏，繼續聽歌！
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 狀態定義 ---
+        let prizes = [];
+        let pokedStates = []; // 記錄每一格是否被戳過
+        let history = [];
+        let isSoundEnabled = true;
+
+        // 聲音上下文 (Web Audio API)
+        let audioCtx = null;
+
+        // 80格全新獎項常數定義
+        const PRIZE_TYPES = {
+            SPECIAL: { id: 'special', name: '特獎', emoji: '🌟', count: 3 },
+            B_GRADE: { id: 'b_grade', name: 'ㄅ級獎', emoji: '🦉', count: 3 },
+            P_GRADE: { id: 'p_grade', name: 'ㄆ級獎', emoji: '🦊', count: 4 },
+            M_GRADE: { id: 'm_grade', name: 'ㄇ級獎', emoji: '🐿️', count: 5 },
+            F_GRADE: { id: 'f_grade', name: 'ㄈ級獎', emoji: '🦔', count: 5 },
+            DRAW_AGAIN: { id: 'draw_again', name: '再抽一次', emoji: '🔄', count: 10 },
+            NO_FISH_SHRIMP: { id: 'no_fish_shrimp', name: '沒魚蝦也好獎', emoji: '🐟', count: 30 },
+            CONSOLATION: { id: 'consolation', name: '銘謝惠顧', emoji: '🍃', count: 20 }
+        };
+
+        // --- 初始化 & 事件綁定 ---
+        window.addEventListener('DOMContentLoaded', () => {
+            initGame();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('reset-btn').addEventListener('click', () => {
+                if (confirm('確定要重新栽種森林嗎？所有洞洞將會恢復，進度會重置！')) {
+                    initGame();
+                }
+            });
+
+            document.getElementById('sound-toggle').addEventListener('change', (e) => {
+                isSoundEnabled = e.target.checked;
+            });
+        }
+
+        // --- 初始化遊戲與隨機洗牌 ---
+        function initGame() {
+            prizes = [];
+            pokedStates = Array(80).fill(false);
+            history = [];
+
+            // 1. 產生 80 個森林獎項
+            for (let i = 0; i < PRIZE_TYPES.SPECIAL.count; i++) prizes.push({ ...PRIZE_TYPES.SPECIAL });
+            for (let i = 0; i < PRIZE_TYPES.B_GRADE.count; i++) prizes.push({ ...PRIZE_TYPES.B_GRADE });
+            for (let i = 0; i < PRIZE_TYPES.P_GRADE.count; i++) prizes.push({ ...PRIZE_TYPES.P_GRADE });
+            for (let i = 0; i < PRIZE_TYPES.M_GRADE.count; i++) prizes.push({ ...PRIZE_TYPES.M_GRADE });
+            for (let i = 0; i < PRIZE_TYPES.F_GRADE.count; i++) prizes.push({ ...PRIZE_TYPES.F_GRADE });
+            for (let i = 0; i < PRIZE_TYPES.DRAW_AGAIN.count; i++) prizes.push({ ...PRIZE_TYPES.DRAW_AGAIN });
+            for (let i = 0; i < PRIZE_TYPES.NO_FISH_SHRIMP.count; i++) prizes.push({ ...PRIZE_TYPES.NO_FISH_SHRIMP });
+            for (let i = 0; i < PRIZE_TYPES.CONSOLATION.count; i++) prizes.push({ ...PRIZE_TYPES.CONSOLATION });
+
+            // 2. 隨機洗牌 (Fisher-Yates Shuffle)
+            for (let i = prizes.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [prizes[i], prizes[j]] = [prizes[j], prizes[i]];
+            }
+
+            // 3. 重設 UI
+            renderGrid();
+            updateStats();
+            renderHistory();
+        }
+
+        // --- 建立微型碎紙屑飛散特效 ---
+        function createBurstParticles(element, colorClass) {
+            const rect = element.getBoundingClientRect();
+            // 在頁面中相對於元素中心點
+            const centerX = rect.left + window.scrollX + (rect.width / 2);
+            const centerY = rect.top + window.scrollY + (rect.height / 2);
+
+            const colors = ['#4ade80', '#22c55e', '#15803d', '#facc15', '#f97316', '#a855f7', '#60a5fa'];
+            const particleCount = 10;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'leaf-particle';
+                
+                // 隨機選一個顏色或落葉
+                const isLeaf = Math.random() > 0.4;
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                particle.style.width = `${Math.random() * 8 + 6}px`;
+                particle.style.height = `${Math.random() * 8 + 6}px`;
+                particle.style.left = `${centerX}px`;
+                particle.style.top = `${centerY}px`;
+
+                if (isLeaf) {
+                    // 綠色落葉造型
+                    particle.style.backgroundColor = '#22c55e';
+                    particle.style.borderRadius = '0 100% 0 100%';
+                } else {
+                    // 彩色圓形碎紙
+                    particle.style.backgroundColor = randomColor;
+                    particle.style.borderRadius = '50%';
+                }
+
+                // 設定隨機發射角度與距離
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * 60 + 40;
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                const rot = Math.random() * 360 + 180;
+
+                particle.style.setProperty('--tx', `${tx}px`);
+                particle.style.setProperty('--ty', `${ty}px`);
+                particle.style.setProperty('--rot', `${rot}deg`);
+
+                document.body.appendChild(particle);
+
+                // 動畫結束後移除 DOM
+                particle.addEventListener('animationend', () => {
+                    particle.remove();
+                });
+            }
+        }
+
+        // --- 渲染 80 格格子 ---
+        function renderGrid() {
+            const gridContainer = document.getElementById('poke-grid');
+            gridContainer.innerHTML = '';
+
+            for (let i = 0; i < 80; i++) {
+                const cellId = i;
+                const cellPrize = prizes[cellId];
+
+                // 建立格子本體 (微調尺寸，使其在80格佈局下更精緻緊湊)
+                const hole = document.createElement('div');
+                hole.className = `relative aspect-square w-full rounded-2xl overflow-hidden shadow-inner border border-emerald-950/40 bg-emerald-950/20 flex items-center justify-center cursor-pointer select-none group`;
+                hole.dataset.id = cellId;
+
+                // 建立底層「獎項內容」
+                const prizeEl = document.createElement('div');
+                prizeEl.className = `absolute inset-0 flex flex-col items-center justify-center p-1 bg-white text-center transition-all duration-300 transform scale-90 opacity-0`;
+                prizeEl.id = `prize-${cellId}`;
+                
+                // 依據獎項種類給予不同精美森林背景與文字配色
+                let prizeIcon = cellPrize.emoji;
+                let textClass = 'text-[9px] font-bold mt-0.5 leading-none';
+                let bgStyle = 'bg-gradient-to-b from-emerald-50 to-white';
+
+                if (cellPrize.id === 'special') {
+                    bgStyle = 'bg-gradient-to-b from-yellow-50 to-orange-50';
+                    textClass += ' text-yellow-600 font-black';
+                } else if (cellPrize.id === 'b_grade') {
+                    bgStyle = 'bg-gradient-to-b from-orange-50 to-amber-50';
+                    textClass += ' text-orange-600';
+                } else if (cellPrize.id === 'p_grade') {
+                    bgStyle = 'bg-gradient-to-b from-amber-50 to-yellow-50';
+                    textClass += ' text-amber-700';
+                } else if (cellPrize.id === 'm_grade') {
+                    bgStyle = 'bg-gradient-to-b from-emerald-50 to-stone-50';
+                    textClass += ' text-emerald-700';
+                } else if (cellPrize.id === 'f_grade') {
+                    bgStyle = 'bg-gradient-to-b from-teal-50 to-white';
+                    textClass += ' text-teal-700';
+                } else if (cellPrize.id === 'draw_again') {
+                    bgStyle = 'bg-gradient-to-b from-purple-50 to-white';
+                    textClass += ' text-purple-600';
+                } else if (cellPrize.id === 'no_fish_shrimp') {
+                    bgStyle = 'bg-gradient-to-b from-blue-50 to-sky-50';
+                    textClass += ' text-blue-500';
+                } else {
+                    bgStyle = 'bg-gradient-to-b from-stone-50 to-stone-100';
+                    textClass += ' text-stone-400';
+                }
+
+                prizeEl.className += ` ${bgStyle}`;
+                prizeEl.innerHTML = `
+                    <span class="text-xl md:text-2xl animate-bounce-short">${prizeIcon}</span>
+                    <span class="${textClass}">${cellPrize.name}</span>
+                `;
+
+                // 建立表層「綠意防偽封貼紙」 (融合落葉森林紋路)
+                const paperEl = document.createElement('div');
+                paperEl.id = `paper-${cellId}`;
+                paperEl.className = `absolute inset-0 bg-gradient-to-br from-emerald-600 to-green-700 text-emerald-50 flex flex-col items-center justify-center font-black rounded-2xl border-2 border-emerald-500 shadow-md poke-paper select-none z-10 hover:brightness-110 active:scale-95 transition-all`;
+                
+                paperEl.innerHTML = `
+                    <div class="absolute inset-1 border border-emerald-500/40 rounded-xl pointer-events-none flex items-center justify-center">
+                        <div class="w-full h-full opacity-10 torn-paper"></div>
+                    </div>
+                    <span class="text-[9px] opacity-60 font-medium">NO.</span>
+                    <span class="text-sm md:text-base font-black tracking-tighter">${cellId + 1}</span>
+                `;
+
+                hole.appendChild(prizeEl);
+                hole.appendChild(paperEl);
+
+                // 點擊觸發戳破
+                hole.addEventListener('click', () => pokeHole(cellId));
+
+                gridContainer.appendChild(hole);
+            }
+        }
+
+        // --- 戳破動作 ---
+        function pokeHole(id) {
+            if (pokedStates[id]) return; // 被戳過了就略過
+
+            pokedStates[id] = true;
+            const prize = prizes[id];
+
+            // 聲音播放
+            playPokeSound(prize.id);
+
+            // 動畫渲染
+            const paper = document.getElementById(`paper-${id}`);
+            const prizeEl = document.getElementById(`prize-${id}`);
+
+            // 觸發碎屑物理噴發特效
+            createBurstParticles(paper, prize.id);
+
+            // 套用爆碎動畫
+            paper.classList.add('poked-shattered');
+
+            // 獎項由底層升起顯示
+            prizeEl.style.transform = 'scale(1) rotate(0deg)';
+            prizeEl.style.opacity = '1';
+
+            // 記錄至歷史紀錄
+            history.unshift({
+                index: id + 1,
+                prize: prize
+            });
+
+            // 根據獎項層級觸發特效
+            if (prize.id === 'special' || prize.id === 'b_grade') {
+                triggerConfetti();
+                showCongratsModal(prize);
+            } else if (prize.id === 'p_grade' || prize.id === 'm_grade' || prize.id === 'f_grade') {
+                triggerMinorConfetti();
+            }
+
+            updateStats();
+            renderHistory();
+        }
+
+        // --- 更新數據統計 ---
+        function updateStats() {
+            let specialLeft = PRIZE_TYPES.SPECIAL.count;
+            let bGradeLeft = PRIZE_TYPES.B_GRADE.count;
+            let pGradeLeft = PRIZE_TYPES.P_GRADE.count;
+            let mGradeLeft = PRIZE_TYPES.M_GRADE.count;
+            let fGradeLeft = PRIZE_TYPES.F_GRADE.count;
+            let drawAgainLeft = PRIZE_TYPES.DRAW_AGAIN.count;
+            let noFishLeft = PRIZE_TYPES.NO_FISH_SHRIMP.count;
+            let consolationLeft = PRIZE_TYPES.CONSOLATION.count;
+
+            let pokedCount = 0;
+
+            for (let i = 0; i < 80; i++) {
+                if (pokedStates[i]) {
+                    pokedCount++;
+                    const type = prizes[i].id;
+                    if (type === 'special') specialLeft--;
+                    else if (type === 'b_grade') bGradeLeft--;
+                    else if (type === 'p_grade') pGradeLeft--;
+                    else if (type === 'm_grade') mGradeLeft--;
+                    else if (type === 'f_grade') fGradeLeft--;
+                    else if (type === 'draw_again') drawAgainLeft--;
+                    else if (type === 'no_fish_shrimp') noFishLeft--;
+                    else if (type === 'consolation') consolationLeft--;
+                }
+            }
+
+            // 更新 DOM 數值
+            document.getElementById('stat-special').innerText = `${specialLeft} / ${PRIZE_TYPES.SPECIAL.count}`;
+            document.getElementById('stat-b_grade').innerText = `${bGradeLeft} / ${PRIZE_TYPES.B_GRADE.count}`;
+            document.getElementById('stat-p_grade').innerText = `${pGradeLeft} / ${PRIZE_TYPES.P_GRADE.count}`;
+            document.getElementById('stat-m_grade').innerText = `${mGradeLeft} / ${PRIZE_TYPES.M_GRADE.count}`;
+            document.getElementById('stat-f_grade').innerText = `${fGradeLeft} / ${PRIZE_TYPES.F_GRADE.count}`;
+            document.getElementById('stat-draw_again').innerText = `${drawAgainLeft} / ${PRIZE_TYPES.DRAW_AGAIN.count}`;
+            document.getElementById('stat-no_fish_shrimp').innerText = `${noFishLeft} / ${PRIZE_TYPES.NO_FISH_SHRIMP.count}`;
+            document.getElementById('stat-consolation').innerText = `${consolationLeft} / ${PRIZE_TYPES.CONSOLATION.count}`;
+
+            // 更新進度條
+            const percent = Math.round((pokedCount / 80) * 100);
+            document.getElementById('poked-percent').innerText = `${percent}% (${pokedCount} / 80)`;
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+        }
+
+        // --- 渲染歷史紀錄 ---
+        function renderHistory() {
+            const historyList = document.getElementById('history-list');
+            const historyCount = document.getElementById('history-count');
+            historyCount.innerText = `${history.length} 筆`;
+
+            if (history.length === 0) {
+                historyList.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs">尚未留下足跡，趕緊戳一格聽歌吧！</div>`;
+                return;
+            }
+
+            historyList.innerHTML = '';
+            history.forEach(item => {
+                const log = document.createElement('div');
+                log.className = `flex items-center justify-between p-2 rounded-lg bg-emerald-50/50 border border-emerald-100/30 text-xs transition-all animate-fade-in`;
+                
+                let prizeColor = 'text-slate-600';
+                if (item.prize.id === 'special') prizeColor = 'text-yellow-600 font-extrabold';
+                else if (item.prize.id === 'b_grade') prizeColor = 'text-orange-600 font-bold';
+                else if (item.prize.id === 'p_grade') prizeColor = 'text-amber-600 font-bold';
+                else if (item.prize.id === 'm_grade') prizeColor = 'text-emerald-700 font-medium';
+                else if (item.prize.id === 'f_grade') prizeColor = 'text-teal-700 font-medium';
+                else if (item.prize.id === 'draw_again') prizeColor = 'text-purple-600 font-semibold';
+                else if (item.prize.id === 'no_fish_shrimp') prizeColor = 'text-blue-500';
+
+                log.innerHTML = `
+                    <span class="text-slate-400">孔位 <strong class="text-slate-700">#${item.index}</strong></span>
+                    <span class="${prizeColor} flex items-center gap-1">
+                        <span>${item.prize.emoji}</span>
+                        <span>${item.prize.name}</span>
+                    </span>
+                `;
+                historyList.appendChild(log);
+            });
+        }
+
+        // --- Web Audio API 森林擬真音效合成 ---
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playPokeSound(prizeId) {
+            if (!isSoundEnabled) return;
+            initAudio();
+
+            const now = audioCtx.currentTime;
+
+            // 1. 【啵！＋紙面碎裂】雙重空氣音效合成
+            const bufferSize = audioCtx.sampleRate * 0.15; 
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+
+            const noiseNode = audioCtx.createBufferSource();
+            noiseNode.buffer = buffer;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            // 清脆的啵啵爆破聲頻率，比舊版高頻，使其更有彈力與硬紙板被刺穿的立體回饋
+            filter.frequency.setValueAtTime(850, now);
+            filter.frequency.exponentialRampToValueAtTime(140, now + 0.1);
+            filter.Q.setValueAtTime(5, now);
+
+            const noiseGain = audioCtx.createGain();
+            noiseGain.gain.setValueAtTime(0.85, now);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+            noiseNode.connect(filter);
+            filter.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseNode.start(now);
+
+            // 2. 基頻低通正弦波爆發（加強空氣擠壓的「噗」實體感）
+            const subOsc = audioCtx.createOscillator();
+            const subGain = audioCtx.createGain();
+            subOsc.type = 'sine';
+            subOsc.frequency.setValueAtTime(150, now);
+            subOsc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+
+            subGain.gain.setValueAtTime(0.4, now);
+            subGain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+            subOsc.connect(subGain);
+            subGain.connect(audioCtx.destination);
+            subOsc.start(now);
+            subOsc.stop(now + 0.08);
+
+            // 3. 旋律音符反饋（森林樂音旋律）
+            setTimeout(() => {
+                if (prizeId === 'special') {
+                    // 特獎：鳥鳴大合鳴
+                    playTone(349.23, 0.12, 'sine'); // F4
+                    playTone(440.00, 0.12, 'sine', 0.08); // A4
+                    playTone(523.25, 0.12, 'sine', 0.16); // C5
+                    playTone(698.46, 0.35, 'triangle', 0.24); // F5 (清脆大和弦)
+                } else if (prizeId === 'b_grade') {
+                    // ㄅ級獎：歡樂雙音
+                    playTone(440.00, 0.12, 'sine'); // A4
+                    playTone(554.37, 0.22, 'sine', 0.08); // C#5
+                } else if (prizeId === 'p_grade') {
+                    // ㄆ級獎：跳動旋律
+                    playTone(392.00, 0.1, 'sine'); // G4
+                    playTone(493.88, 0.2, 'sine', 0.06); // B4
+                } else if (prizeId === 'm_grade' || prizeId === 'f_grade') {
+                    // ㄇ/ㄈ級獎：森林的清脆鐘聲
+                    playTone(523.25, 0.15, 'sine'); // C5
+                } else if (prizeId === 'draw_again') {
+                    // 再抽一次：向上躍動的琶音
+                    playTone(293.66, 0.08, 'triangle'); // D4
+                    playTone(349.23, 0.08, 'triangle', 0.06); // F4
+                    playTone(440.00, 0.15, 'sine', 0.12); // A4
+                } else if (prizeId === 'no_fish_shrimp') {
+                    // 沒魚蝦也好獎：水滴聲
+                    playTone(329.63, 0.12, 'sine'); // E4
+                } else {
+                    // 銘謝惠顧：落葉飄下
+                    playTone(220.00, 0.25, 'triangle'); // A3
+                }
+            }, 50);
+        }
+
+        function playTone(freq, duration, type = 'sine', delay = 0) {
+            const now = audioCtx.currentTime + delay;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, now);
+
+            gain.gain.setValueAtTime(0.25, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(now);
+            osc.stop(now + duration);
+        }
+
+        // --- 紙花特效控制 (Canvas Confetti) ---
+        function triggerConfetti() {
+            confetti({
+                particleCount: 80,
+                spread: 60,
+                origin: { x: 0.1, y: 0.6 }
+            });
+            confetti({
+                particleCount: 80,
+                spread: 60,
+                origin: { x: 0.9, y: 0.6 }
+            });
+            setTimeout(() => {
+                confetti({
+                    particleCount: 100,
+                    spread: 100,
+                    origin: { x: 0.5, y: 0.4 }
+                });
+            }, 300);
+        }
+
+        function triggerMinorConfetti() {
+            confetti({
+                particleCount: 35,
+                spread: 45,
+                origin: { x: 0.5, y: 0.5 }
+            });
+        }
+
+        // --- 恭喜 Modal 視窗 ---
+        function showCongratsModal(prize) {
+            const modal = document.getElementById('congrats-modal');
+            const emojiEl = document.getElementById('modal-emoji');
+            const badgeEl = document.getElementById('modal-badge');
+            const titleEl = document.getElementById('modal-title');
+            const descEl = document.getElementById('modal-desc');
+
+            emojiEl.innerText = prize.emoji;
+            badgeEl.innerText = `恭喜獲得 ${prize.name}！`;
+            titleEl.innerText = `森林在唱歌囉！🎉`;
+            descEl.innerText = `太幸運了！您在林間小路上找到了寶貴的【${prize.name}】！微風和小鳥正圍繞著您翩翩起舞，快去跟好朋友們炫耀吧！`;
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('congrats-modal');
+            modal.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
