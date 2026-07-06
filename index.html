@@ -98,8 +98,8 @@
                 聽見森林在唱歌
                 <i class="fa-solid fa-tree text-emerald-600 animate-pulse"></i>
             </h1>
-            <p class="text-emerald-800/80 max-w-2xl mx-auto text-sm md:text-base">
-                森林裡的動物們正在歡唱！為您隆重獻上 <span class="font-extrabold text-emerald-950">全新 80 格神祕寶藏洞洞樂</span>，藏著滿滿的森林之音與驚喜獎項，快伸出手指用力戳一下吧！
+            <p class="text-emerald-800/80 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
+                森林裡的動物們正在歡唱！為您隆重獻上 <span class="font-extrabold text-emerald-950">全新 80 格神祕寶藏洞洞樂</span>，只要<span class="text-emerald-600 font-extrabold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">15點</span>就可以抽大獎，加入森林成員慶祝的隊伍！ (本機已啟用自動存檔功能 💾)
             </p>
         </header>
 
@@ -216,7 +216,7 @@
                     <!-- 重置按鈕 -->
                     <button id="reset-btn" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-700 hover:to-green-800 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
                         <i class="fa-solid fa-leaf animate-spin-slow"></i>
-                        重新栽種 (重置 80 格)
+                        重新栽種 (重置進度)
                     </button>
                 </div>
 
@@ -311,24 +311,60 @@
 
         // --- 初始化 & 事件綁定 ---
         window.addEventListener('DOMContentLoaded', () => {
-            initGame();
+            loadGameFromStorage(); // 初始化時優先讀取進度
             setupEventListeners();
         });
 
         function setupEventListeners() {
             document.getElementById('reset-btn').addEventListener('click', () => {
-                if (confirm('確定要重新栽種森林嗎？所有洞洞將會恢復，進度會重置！')) {
-                    initGame();
+                if (confirm('確定要重新栽種森林嗎？所有洞洞將會恢復，目前的進度將會被清除！')) {
+                    resetGame();
                 }
             });
 
             document.getElementById('sound-toggle').addEventListener('change', (e) => {
                 isSoundEnabled = e.target.checked;
+                localStorage.setItem('forest_sound_enabled', isSoundEnabled);
             });
         }
 
-        // --- 初始化遊戲與隨機洗牌 ---
-        function initGame() {
+        // --- 從 LocalStorage 載入存檔 ---
+        function loadGameFromStorage() {
+            const savedPrizes = localStorage.getItem('forest_prizes');
+            const savedPokedStates = localStorage.getItem('forest_poked_states');
+            const savedHistory = localStorage.getItem('forest_history');
+            const savedSound = localStorage.getItem('forest_sound_enabled');
+
+            // 載入音效設定
+            if (savedSound !== null) {
+                isSoundEnabled = savedSound === 'true';
+                document.getElementById('sound-toggle').checked = isSoundEnabled;
+            }
+
+            // 判斷是否有完整的前期存檔
+            if (savedPrizes && savedPokedStates && savedHistory) {
+                prizes = JSON.parse(savedPrizes);
+                pokedStates = JSON.parse(savedPokedStates);
+                history = JSON.parse(savedHistory);
+                
+                renderGrid(true); // 帶入「已戳破狀態」渲染
+                updateStats();
+                renderHistory();
+            } else {
+                // 沒有存檔就建立全新的一局
+                generateNewGame();
+            }
+        }
+
+        // --- 將當前狀態儲存到 LocalStorage ---
+        function saveGameToStorage() {
+            localStorage.setItem('forest_prizes', JSON.stringify(prizes));
+            localStorage.setItem('forest_poked_states', JSON.stringify(pokedStates));
+            localStorage.setItem('forest_history', JSON.stringify(history));
+        }
+
+        // --- 產生全新的遊戲局數（洗牌） ---
+        function generateNewGame() {
             prizes = [];
             pokedStates = Array(80).fill(false);
             history = [];
@@ -349,16 +385,24 @@
                 [prizes[i], prizes[j]] = [prizes[j], prizes[i]];
             }
 
-            // 3. 重設 UI
-            renderGrid();
+            saveGameToStorage(); // 立即存檔
+            renderGrid(false);
             updateStats();
             renderHistory();
+        }
+
+        // --- 完全重置遊戲 ---
+        function resetGame() {
+            // 清除 LocalStorage
+            localStorage.removeItem('forest_prizes');
+            localStorage.removeItem('forest_poked_states');
+            localStorage.removeItem('forest_history');
+            generateNewGame();
         }
 
         // --- 建立微型碎紙屑飛散特效 ---
         function createBurstParticles(element, colorClass) {
             const rect = element.getBoundingClientRect();
-            // 在頁面中相對於元素中心點
             const centerX = rect.left + window.scrollX + (rect.width / 2);
             const centerY = rect.top + window.scrollY + (rect.height / 2);
 
@@ -369,7 +413,6 @@
                 const particle = document.createElement('div');
                 particle.className = 'leaf-particle';
                 
-                // 隨機選一個顏色或落葉
                 const isLeaf = Math.random() > 0.4;
                 const randomColor = colors[Math.floor(Math.random() * colors.length)];
                 
@@ -379,16 +422,13 @@
                 particle.style.top = `${centerY}px`;
 
                 if (isLeaf) {
-                    // 綠色落葉造型
                     particle.style.backgroundColor = '#22c55e';
                     particle.style.borderRadius = '0 100% 0 100%';
                 } else {
-                    // 彩色圓形碎紙
                     particle.style.backgroundColor = randomColor;
                     particle.style.borderRadius = '50%';
                 }
 
-                // 設定隨機發射角度與距離
                 const angle = Math.random() * Math.PI * 2;
                 const distance = Math.random() * 60 + 40;
                 const tx = Math.cos(angle) * distance;
@@ -401,7 +441,6 @@
 
                 document.body.appendChild(particle);
 
-                // 動畫結束後移除 DOM
                 particle.addEventListener('animationend', () => {
                     particle.remove();
                 });
@@ -409,25 +448,23 @@
         }
 
         // --- 渲染 80 格格子 ---
-        function renderGrid() {
+        function renderGrid(isResume = false) {
             const gridContainer = document.getElementById('poke-grid');
             gridContainer.innerHTML = '';
 
             for (let i = 0; i < 80; i++) {
                 const cellId = i;
                 const cellPrize = prizes[cellId];
+                const isAlreadyPoked = pokedStates[cellId];
 
-                // 建立格子本體 (微調尺寸，使其在80格佈局下更精緻緊湊)
                 const hole = document.createElement('div');
                 hole.className = `relative aspect-square w-full rounded-2xl overflow-hidden shadow-inner border border-emerald-950/40 bg-emerald-950/20 flex items-center justify-center cursor-pointer select-none group`;
                 hole.dataset.id = cellId;
 
                 // 建立底層「獎項內容」
                 const prizeEl = document.createElement('div');
-                prizeEl.className = `absolute inset-0 flex flex-col items-center justify-center p-1 bg-white text-center transition-all duration-300 transform scale-90 opacity-0`;
                 prizeEl.id = `prize-${cellId}`;
                 
-                // 依據獎項種類給予不同精美森林背景與文字配色
                 let prizeIcon = cellPrize.emoji;
                 let textClass = 'text-[9px] font-bold mt-0.5 leading-none';
                 let bgStyle = 'bg-gradient-to-b from-emerald-50 to-white';
@@ -458,16 +495,27 @@
                     textClass += ' text-stone-400';
                 }
 
-                prizeEl.className += ` ${bgStyle}`;
+                // 如果已經被戳過，直接設定為打開後的完全顯示狀態
+                if (isAlreadyPoked) {
+                    prizeEl.className = `absolute inset-0 flex flex-col items-center justify-center p-1 text-center transition-all duration-300 scale-100 opacity-100 ${bgStyle}`;
+                } else {
+                    prizeEl.className = `absolute inset-0 flex flex-col items-center justify-center p-1 text-center transition-all duration-300 transform scale-90 opacity-0 ${bgStyle}`;
+                }
+
                 prizeEl.innerHTML = `
-                    <span class="text-xl md:text-2xl animate-bounce-short">${prizeIcon}</span>
+                    <span class="text-xl md:text-2xl ${isAlreadyPoked ? '' : 'animate-bounce-short'}">${prizeIcon}</span>
                     <span class="${textClass}">${cellPrize.name}</span>
                 `;
 
-                // 建立表層「綠意防偽封貼紙」 (融合落葉森林紋路)
+                // 建立表層「綠意防偽封貼紙」
                 const paperEl = document.createElement('div');
                 paperEl.id = `paper-${cellId}`;
-                paperEl.className = `absolute inset-0 bg-gradient-to-br from-emerald-600 to-green-700 text-emerald-50 flex flex-col items-center justify-center font-black rounded-2xl border-2 border-emerald-500 shadow-md poke-paper select-none z-10 hover:brightness-110 active:scale-95 transition-all`;
+                
+                if (isAlreadyPoked) {
+                    paperEl.className = `absolute inset-0 bg-gradient-to-br from-emerald-600 to-green-700 text-emerald-50 flex flex-col items-center justify-center font-black rounded-2xl border-2 border-emerald-500 shadow-md scale-0 opacity-0 pointer-events-none`;
+                } else {
+                    paperEl.className = `absolute inset-0 bg-gradient-to-br from-emerald-600 to-green-700 text-emerald-50 flex flex-col items-center justify-center font-black rounded-2xl border-2 border-emerald-500 shadow-md poke-paper select-none z-10 hover:brightness-110 active:scale-95 transition-all`;
+                }
                 
                 paperEl.innerHTML = `
                     <div class="absolute inset-1 border border-emerald-500/40 rounded-xl pointer-events-none flex items-center justify-center">
@@ -494,6 +542,8 @@
             pokedStates[id] = true;
             const prize = prizes[id];
 
+            saveGameToStorage();
+
             // 聲音播放
             playPokeSound(prize.id);
 
@@ -516,6 +566,8 @@
                 index: id + 1,
                 prize: prize
             });
+
+            saveGameToStorage();
 
             // 根據獎項層級觸發特效
             if (prize.id === 'special' || prize.id === 'b_grade') {
@@ -638,7 +690,6 @@
 
             const filter = audioCtx.createBiquadFilter();
             filter.type = 'bandpass';
-            // 清脆的啵啵爆破聲頻率，比舊版高頻，使其更有彈力與硬紙板被刺穿的立體回饋
             filter.frequency.setValueAtTime(850, now);
             filter.frequency.exponentialRampToValueAtTime(140, now + 0.1);
             filter.Q.setValueAtTime(5, now);
@@ -652,7 +703,7 @@
             noiseGain.connect(audioCtx.destination);
             noiseNode.start(now);
 
-            // 2. 基頻低通正弦波爆發（加強空氣擠壓的「噗」實體感）
+            // 2. 基頻低通正弦波爆發
             const subOsc = audioCtx.createOscillator();
             const subGain = audioCtx.createGain();
             subOsc.type = 'sine';
@@ -667,40 +718,34 @@
             subOsc.start(now);
             subOsc.stop(now + 0.08);
 
-            // 3. 旋律音符反饋（森林樂音旋律）
+            // 3. 旋律音符反饋
             setTimeout(() => {
                 if (prizeId === 'special') {
-                    // 特獎：鳥鳴大合鳴
                     playTone(349.23, 0.12, 'sine'); // F4
                     playTone(440.00, 0.12, 'sine', 0.08); // A4
                     playTone(523.25, 0.12, 'sine', 0.16); // C5
-                    playTone(698.46, 0.35, 'triangle', 0.24); // F5 (清脆大和弦)
+                    playTone(698.46, 0.35, 'triangle', 0.24); // F5
                 } else if (prizeId === 'b_grade') {
-                    // ㄅ級獎：歡樂雙音
                     playTone(440.00, 0.12, 'sine'); // A4
                     playTone(554.37, 0.22, 'sine', 0.08); // C#5
                 } else if (prizeId === 'p_grade') {
-                    // ㄆ級獎：跳動旋律
                     playTone(392.00, 0.1, 'sine'); // G4
                     playTone(493.88, 0.2, 'sine', 0.06); // B4
                 } else if (prizeId === 'm_grade' || prizeId === 'f_grade') {
-                    // ㄇ/ㄈ級獎：森林的清脆鐘聲
                     playTone(523.25, 0.15, 'sine'); // C5
                 } else if (prizeId === 'draw_again') {
-                    // 再抽一次：向上躍動的琶音
                     playTone(293.66, 0.08, 'triangle'); // D4
                     playTone(349.23, 0.08, 'triangle', 0.06); // F4
                     playTone(440.00, 0.15, 'sine', 0.12); // A4
                 } else if (prizeId === 'no_fish_shrimp') {
-                    // 沒魚蝦也好獎：水滴聲
                     playTone(329.63, 0.12, 'sine'); // E4
                 } else {
-                    // 銘謝惠顧：落葉飄下
                     playTone(220.00, 0.25, 'triangle'); // A3
                 }
             }, 50);
         }
 
+        // 輔助撥放音訊
         function playTone(freq, duration, type = 'sine', delay = 0) {
             const now = audioCtx.currentTime + delay;
             const osc = audioCtx.createOscillator();
